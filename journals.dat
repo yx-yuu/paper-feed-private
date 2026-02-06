@@ -29,12 +29,13 @@ https://dblp.org/feed/streams/conf/eurosp.rss
 https://dblp.org/feed/streams/conf/raid.rss
 https://dblp.org/feed/streams/conf/acsac.rss
 
-# AI A Conferences (DBLP streams)
+# AI/ML A Conferences (DBLP streams)
 https://dblp.org/feed/streams/conf/aaai.rss
 https://dblp.org/feed/streams/conf/nips.rss
 https://dblp.org/feed/streams/conf/acl.rss
 https://dblp.org/feed/streams/conf/icml.rss
 https://dblp.org/feed/streams/conf/ijcai.rss
+https://dblp.org/feed/streams/conf/iclr.rss  # ICLR - GNN, deep learning top conference
 
 # Software Engineering / Security (CAS Q1-ish / Top Journals)
 https://dl.acm.org/action/showFeed?type=etoc&feed=rss&jc=csur
@@ -60,3 +61,9 @@ https://rss.arxiv.org/rss/cs.LG
 https://rss.arxiv.org/rss/cs.CL
 https://rss.arxiv.org/rss/cs.IR
 https://rss.arxiv.org/rss/stat.ML
+
+# --- Top Tier Software Engineering (CCF A) ---
+https://dblp.org/feed/streams/conf/issta.rss
+
+# --- Top Tier Formal Methods (CCF A) ---
+https://dblp.org/feed/streams/conf/cav.rss
