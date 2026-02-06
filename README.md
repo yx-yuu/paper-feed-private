@@ -13,7 +13,7 @@
 
 ## 🛠 功能特性
 
-*   **全自动运行**：无需服务器，利用 GitHub Actions 每 8 小时自动执行一次检索。
+*   **全自动运行**：无需服务器，利用 GitHub Actions 每 6 小时自动执行一次检索。
 *   **多维度检索**：支持简单的关键词匹配及 `Keyword A AND Keyword B` 的组合逻辑检索。
 *   **数据清洗**：内置 XML 字符清洗程序，自动移除非法字符，确保订阅源的兼容性与稳定性。
 *   **隐私保护**：支持通过 GitHub Secrets 注入配置，隐藏用户的研究领域与关注列表。
@@ -30,17 +30,14 @@
 ### 2. 配置参数
 提供两种配置方式，**涉及未发表 Idea 或敏感方向建议使用方式 B**。
 
-#### 方式 A：文件配置（公开可见）
+> 提示：当前默认的 `journals.dat` 已按 **CCF A类（软件工程/系统软件/程序设计语言）期刊/会议** + **信息安全顶会（S&P/CCS/USENIX Security/NDSS）**（含 EuroS&P/RAID/ACSAC） + **AI 顶会（AAAI/NeurIPS/ACL/ICML/IJCAI）** + **arXiv（cs.CR/cs.SE/cs.PL/cs.AI/cs.LG/cs.CL/cs.IR/stat.ML）** 给了一套起步订阅源，并补充了部分中科院 1 区/常见顶级期刊（如 TDSC/TIFS/TOPS/CSUR/ESE/ASE/IST/JSS/SCP/IEEE S&P 等）；原材料/物理方向的示例 RSS 列表保存在 `journals.dat`。
+
+#### 文件配置（公开可见）
 直接编辑仓库中的以下文件：
 *   `journals.dat`：填入期刊 RSS 链接，一行一个。
 *   `keywords.dat`：填入筛选关键词，一行一个。
     *   示例：`Perovskite AND Stability`
 
-#### 方式 B：环境变量配置（私密不可见）
-1.  进入仓库 **Settings** -> **Secrets and variables** -> **Actions**。
-2.  点击 **New repository secret** 添加以下两个变量：
-    *   **Name**: `RSS_JOURNALS` | **Secret**: 填入期刊链接（换行分隔）。
-    *   **Name**: `RSS_KEYWORDS` | **Secret**: 填入关键词（换行分隔）。
 
 ### 3. 启动服务
 1.  **配置 Pages**：
@@ -63,7 +60,7 @@
     *   Zotero 菜单栏：`文件` -> `新建文献库` -> `新建订阅` -> `从网址`。
     *   粘贴上述链接。
 3.  **设置同步频率**：
-    *   建议在 Zotero 订阅设置中将更新时间设为 **8小时** 或更短，以匹配后端的更新频率。
+    *   建议在 Zotero 订阅设置中将更新时间设为 **6小时** 或更短，以匹配后端的更新频率。
 
 ---
 

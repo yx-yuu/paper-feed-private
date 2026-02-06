@@ -1,0 +1,91 @@
+# One query per line; matches are OR'ed across lines.
+# Use uppercase "AND" inside a line for conjunction.
+#
+# Keep keywords specific to reduce noise.
+
+# --- Repo-level program analysis / static analysis ---
+static analysis
+SAST AND LLM
+program analysis AND LLM
+whole-program AND analysis
+interprocedural analysis AND LLM
+inter-procedural analysis AND LLM
+data flow analysis AND LLM
+data-flow analysis AND LLM
+control flow graph AND LLM
+control-flow graph AND LLM
+call graph AND LLM
+call-graph AND LLM
+call graph AND construction AND LLM
+points-to analysis AND LLM
+pointer analysis AND LLM
+dependency graph AND LLM
+import graph AND LLM
+package dependency AND LLM
+build dependency AND LLM
+repository-level AND LLM
+project-level AND LLM
+cross-file AND analysis
+
+# --- Vulnerability causal tracing / slicing / benchmark ---
+vulnerability AND slicing AND LLM
+program slicing AND LLM
+backward slicing AND LLM
+program dependence graph AND LLM
+taint analysis AND LLM
+taint tracking AND LLM
+interprocedural AND taint AND LLM
+root cause AND vulnerability AND LLM
+CVE AND LLM
+CVE- AND LLM
+CVE AND patch
+CWE AND LLM
+CWE- AND LLM
+vulnerability detection AND LLM
+vulnerability analysis AND LLM
+patch analysis AND LLM
+software security AND LLM
+secure coding
+vulnerability discovery AND LLM
+vulnerability mining AND LLM
+concolic execution AND LLM
+exploit generation AND LLM
+memory safety
+use-after-free AND LLM
+buffer overflow AND LLM
+dependency confusion AND LLM
+software composition analysis AND LLM
+
+# --- Repo-level code graphs / security semantics / graphs ---
+code property graph AND LLM
+code graph AND LLM
+software knowledge graph AND LLM
+security knowledge graph AND LLM
+graph neural network AND vulnerability
+graph neural network AND code
+
+# --- AI4SE / LLM for code analysis / multi-agent ---
+AI4SE
+large language model AND static analysis
+LLM AND static analysis
+large language model AND program analysis
+LLM AND program analysis
+large language model AND vulnerability
+LLM AND vulnerability
+LLM AND patch
+LLM AND CodeQL
+LLM AND code review
+LLM AND bug
+retrieval augmented generation AND code
+RAG AND code
+multi-agent AND code
+agentic AND software
+hallucination AND code
+
+# --- Neuro-symbolic / formal / query-based verification ---
+neuro-symbolic AND security
+CodeQL AND LLM
+Joern AND LLM
+Semgrep AND LLM
+symbolic execution AND vulnerability AND LLM
+formal verification AND LLM

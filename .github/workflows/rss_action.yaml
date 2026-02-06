@@ -28,7 +28,9 @@ jobs:
 
     - name: Run RSS Script
       env: 
+        RSS_JOURNALS: ${{ secrets.RSS_JOURNALS }}
         RSS_KEYWORDS: ${{ secrets.RSS_KEYWORDS }}
+        RSS_FEISHU_WEBHOOK: ${{ secrets.RSS_FEISHU_WEBHOOK }}
       run: python get_RSS.py
 
     - name: Commit and Push changes
