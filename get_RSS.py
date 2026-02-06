@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urlsplit, urlunsplit
 from rfeed import Item, Feed, Guid
 
+TITLE_PREFIX_RE = re.compile(r"^\[[^\]]{1,60}\]\s*")
+
 def _env_int(name, default):
     value = os.environ.get(name, "").strip()
     if not value:
@@ -476,9 +478,17 @@ def get_existing_items():
         for entry in feed.entries:
             pub_struct = entry.get('published_parsed')
             pub_date = convert_struct_time_to_datetime(pub_struct)
+
+            # Avoid double-prefixing titles across runs, e.g. "[ICSE 2026] [ICSE 2026] ..."
+            raw_title = entry.get('title', '')
+            while True:
+                match = TITLE_PREFIX_RE.match((raw_title or "").strip())
+                if not match:
+                    break
+                raw_title = (raw_title or "")[match.end():].lstrip()
             
             entries.append({
-                'title': entry.get('title', ''),
+                'title': raw_title,
                 'link': entry.get('link', ''),
                 'pub_date': pub_date,
                 'summary': entry.get('summary', ''),
@@ -491,19 +501,79 @@ def get_existing_items():
         print(f"Error reading existing file: {e}")
         return [] # 如果旧文件读不了，就当做第一次运行
 
-def match_entry(entry, queries):
+def _split_and_terms(query):
+    return [part.strip() for part in re.split(r"\s+AND\s+", query or "", flags=re.IGNORECASE) if part.strip()]
+
+
+def _compile_term(term):
+    term = (term or "").strip()
+    if not term:
+        return None
+
+    exact = False
+    if term.startswith("="):
+        exact = True
+        term = term[1:].strip()
+
+    if not term:
+        return None
+
+    normalized = " ".join(term.split())
+    flags = 0 if exact else re.IGNORECASE
+
+    # Phrase match (flexible whitespace).
+    if " " in normalized:
+        words = normalized.split(" ")
+        pattern = r"\s+".join(re.escape(word) for word in words)
+        return re.compile(pattern, flags)
+
+    token = normalized
+
+    # Short alphanumeric tokens tend to have many substring false-positives (e.g., RAG in stoRAGe).
+    # Use word boundaries and allow a simple plural 's' suffix for acronyms (LLMs, CVEs, ...).
+    if re.fullmatch(r"[A-Za-z0-9]+", token) and (len(token) <= 5 or token.isupper()):
+        plural = r"(?:s)?" if re.fullmatch(r"[A-Za-z]{2,6}", token) else ""
+        pattern = rf"(?<![A-Za-z0-9_]){re.escape(token)}{plural}(?![A-Za-z0-9_])"
+        return re.compile(pattern, flags)
+
+    # Default: (in)sensitive substring match.
+    return re.compile(re.escape(token), flags)
+
+
+def compile_queries(queries):
+    compiled = []
+    for raw_query in queries or []:
+        raw_query = (raw_query or "").strip()
+        if not raw_query:
+            continue
+
+        term_patterns = []
+        for raw_term in _split_and_terms(raw_query):
+            pattern = _compile_term(raw_term)
+            if pattern is not None:
+                term_patterns.append(pattern)
+
+        if term_patterns:
+            compiled.append((raw_query, term_patterns))
+
+    return compiled
+
+
+def find_matching_query(entry, compiled_queries):
+    title = entry.get("title", "") or ""
+    summary = entry.get("summary", "") or ""
+    haystack = f"{title} {summary}"
+
+    for raw_query, term_patterns in compiled_queries or []:
+        if all(pattern.search(haystack) for pattern in term_patterns):
+            return raw_query
+
+    return None
+
+
+def match_entry(entry, compiled_queries):
     # (保持不变)
-    text_to_search = (entry['title'] + " " + entry['summary']).lower()
-    for query in queries:
-        keywords = [k.strip().lower() for k in query.split('AND')]
-        match = True
-        for keyword in keywords:
-            if keyword not in text_to_search:
-                match = False
-                break
-        if match:
-            return True
-    return False
+    return find_matching_query(entry, compiled_queries) is not None
 
 def generate_rss_xml(items):
     """生成 RSS 2.0 XML 文件 (已加入非法字符清洗)"""
@@ -554,6 +624,22 @@ def parse_args():
     parser.add_argument("--keywords-file", default=DEFAULT_KEYWORDS_FILE, help="Path to keywords query list file.")
     parser.add_argument("--output-file", default=DEFAULT_OUTPUT_FILE, help="Output RSS filename.")
     parser.add_argument("--max-items", type=int, default=DEFAULT_MAX_ITEMS, help="Max number of items in output RSS.")
+    parser.add_argument("--min-year", type=int, default=2022, help="Only include items published in or after this year.")
+    parser.add_argument(
+        "--prune-existing",
+        action="store_true",
+        help="Drop existing items that no longer match the current keyword rules (and/or are older than --min-year).",
+    )
+    parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Ignore the existing output file and rebuild the feed from scratch.",
+    )
+    parser.add_argument(
+        "--skip-fetch",
+        action="store_true",
+        help="Do not fetch remote RSS feeds; only process the existing output file (useful for iterating on keywords).",
+    )
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT, help="HTTP User-Agent for fetching RSS feeds.")
     parser.add_argument(
         "--feishu-webhook",
@@ -593,31 +679,51 @@ def main():
 
     rss_urls = load_config(args.journals_file, 'RSS_JOURNALS')
     queries = load_config(args.keywords_file, 'RSS_KEYWORDS')
+    compiled_queries = compile_queries(queries)
     
-    if not rss_urls or not queries:
-        print("Error: Configuration files are empty or missing.")
+    if not queries:
+        print("Error: Keywords list is empty or missing.")
+        return
+    if not rss_urls and not args.skip_fetch:
+        print("Error: Journals/source list is empty or missing (and --skip-fetch is not set).")
         return
 
-    existing_entries = get_existing_items()
+    existing_entries = [] if args.rebuild else get_existing_items()
+    if args.prune_existing and existing_entries:
+        before = len(existing_entries)
+        pruned = []
+        for entry in existing_entries:
+            pub_date = entry.get("pub_date")
+            if pub_date and pub_date.year < int(args.min_year):
+                continue
+            if match_entry(entry, compiled_queries):
+                pruned.append(entry)
+        existing_entries = pruned
+        print(f"Pruned existing items: {before} -> {len(existing_entries)}")
+
     seen_ids = set(entry['id'] for entry in existing_entries)
     
     all_entries = existing_entries.copy()
     new_entries = []
     new_count = 0
 
-    print("Starting RSS fetch from remote...")
-    for url in rss_urls:
-        fetched_entries = parse_rss(url)
-        for entry in fetched_entries:
-            if entry['id'] in seen_ids:
-                continue
-            
-            if match_entry(entry, queries) and entry['pub_date'].year >= 2022:
-                all_entries.append(entry)
-                seen_ids.add(entry['id'])
-                new_entries.append(entry)
-                new_count += 1
-                print(f"Match found: {entry['title'][:50]}...")
+    if args.skip_fetch:
+        print("Skipping remote RSS fetch (--skip-fetch).")
+    else:
+        print("Starting RSS fetch from remote...")
+        for url in rss_urls:
+            fetched_entries = parse_rss(url)
+            for entry in fetched_entries:
+                if entry['id'] in seen_ids:
+                    continue
+
+                matched_query = find_matching_query(entry, compiled_queries)
+                if matched_query and entry['pub_date'].year >= int(args.min_year):
+                    all_entries.append(entry)
+                    seen_ids.add(entry['id'])
+                    new_entries.append(entry)
+                    new_count += 1
+                    print(f"Match found ({matched_query}): {entry['title'][:50]}...")
 
     print(f"Added {new_count} new entries.")
     generate_rss_xml(all_entries)
