@@ -517,7 +517,8 @@ def generate_rss_xml(items):
         title = item['title']
         if not item.get('is_old', False):
             abbr = get_journal_abbr(item['journal'])
-            title = f"[{abbr}] {item['title']}"
+            year = item['pub_date'].year
+            title = f"[{abbr} {year}] {item['title']}"
             
         # --- 关键修改：清洗数据 ---
         clean_title = remove_illegal_xml_chars(title)
@@ -612,7 +613,7 @@ def main():
             if entry['id'] in seen_ids:
                 continue
             
-            if match_entry(entry, queries):
+            if match_entry(entry, queries) and entry['pub_date'].year >= 2022:
                 all_entries.append(entry)
                 seen_ids.add(entry['id'])
                 new_entries.append(entry)
