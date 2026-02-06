@@ -515,10 +515,9 @@ def generate_rss_xml(items):
     
     for item in items:
         title = item['title']
-        if not item.get('is_old', False):
-            abbr = get_journal_abbr(item['journal'])
-            year = item['pub_date'].year
-            title = f"[{abbr} {year}] {item['title']}"
+        abbr = get_journal_abbr(item['journal'])
+        year = item['pub_date'].year
+        title = f"[{abbr} {year}] {item['title']}"
             
         # --- 关键修改：清洗数据 ---
         clean_title = remove_illegal_xml_chars(title)

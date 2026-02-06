@@ -35,7 +35,8 @@ https://dblp.org/feed/streams/conf/nips.rss
 https://dblp.org/feed/streams/conf/acl.rss
 https://dblp.org/feed/streams/conf/icml.rss
 https://dblp.org/feed/streams/conf/ijcai.rss
-https://dblp.org/feed/streams/conf/iclr.rss  # ICLR - GNN, deep learning top conference
+https://dblp.org/feed/streams/conf/iclr.rss
+# ICLR - GNN, deep learning top conference
 
 # Software Engineering / Security (CAS Q1-ish / Top Journals)
 https://dl.acm.org/action/showFeed?type=etoc&feed=rss&jc=csur
