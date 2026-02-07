@@ -65,7 +65,17 @@ vulnerability analysis
 security analysis
 software security
 code review
+security bug
+bug detection
+bug finding
+code auditing
+anti-pattern
 automated code review
+false positive
+false positives
+alert fatigue
+triage
+security specification
 
 # --- CVE/CWE 核心术语 ---
 CVE
@@ -114,6 +124,12 @@ LLM AND graph
 LLM AND symbolic execution
 LLM AND formal verification
 LLM AND CodeQL
+
+large language model AND static analysis
+large language model AND vulnerability
+false positive AND SAST
+false positive AND static analysis
+security specification AND vulnerability
 
 repository-level AND analysis
 cross-file AND analysis

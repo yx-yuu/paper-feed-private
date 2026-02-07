@@ -2,25 +2,47 @@ name: Auto RSS Fetch
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时运行一次
-  workflow_dispatch:      # 允许手动触发
+    - cron: '0 */6 * * *'  # run every 6 hours
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: 'Rebuild feed from scratch (ignore existing XML)'
+        required: false
+        default: false
+        type: boolean
+      dblp_enrich_arxiv:
+        description: 'Enrich DBLP entries with arXiv abstracts'
+        required: false
+        default: false
+        type: boolean
+      dblp_enrich_max:
+        description: 'Max DBLP→arXiv enrichments per run'
+        required: false
+        default: '30'
+        type: string
+      min_year:
+        description: 'Only include items published in or after this year'
+        required: false
+        default: '2022'
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
-    # 这一步非常重要：赋予脚本写入仓库的权限
+    # Allow the workflow to push updated RSS XML back to the repository.
     permissions:
       contents: write
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
@@ -31,7 +53,29 @@ jobs:
         RSS_JOURNALS: ${{ secrets.RSS_JOURNALS }}
         RSS_KEYWORDS: ${{ secrets.RSS_KEYWORDS }}
         RSS_FEISHU_WEBHOOK: ${{ secrets.RSS_FEISHU_WEBHOOK }}
-      run: python get_RSS.py --prune-existing
+        PYTHONDONTWRITEBYTECODE: '1'
+      run: |
+        set -euo pipefail
+        ARGS="--prune-existing"
+
+        MIN_YEAR="${{ github.event.inputs.min_year }}"
+        if [ -n "${MIN_YEAR}" ]; then
+          ARGS="${ARGS} --min-year ${MIN_YEAR}"
+        fi
+
+        if [ "${{ github.event.inputs.rebuild }}" = "true" ]; then
+          ARGS="${ARGS} --rebuild"
+        fi
+
+        if [ "${{ github.event.inputs.dblp_enrich_arxiv }}" = "true" ]; then
+          ENRICH_MAX="${{ github.event.inputs.dblp_enrich_max }}"
+          if [ -z "${ENRICH_MAX}" ]; then
+            ENRICH_MAX="30"
+          fi
+          ARGS="${ARGS} --dblp-enrich-arxiv --dblp-enrich-max ${ENRICH_MAX}"
+        fi
+
+        python get_RSS.py ${ARGS}
 
     - name: Commit and Push changes
       run: |

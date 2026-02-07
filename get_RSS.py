@@ -8,7 +8,7 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit, quote
 from rfeed import Item, Feed, Guid
 
 TITLE_PREFIX_RE = re.compile(r"^\[[^\]]{1,60}\]\s*")
@@ -50,6 +50,8 @@ DEFAULT_DBLP_MAX_VOLUMES = _env_int("RSS_DBLP_MAX_VOLUMES", 1)
 DEFAULT_REQUEST_SLEEP_SEC = _env_float("RSS_REQUEST_SLEEP_SEC", 0.5)
 DEFAULT_FEISHU_WEBHOOK = os.environ.get("RSS_FEISHU_WEBHOOK", "").strip()
 DEFAULT_NOTIFY_MAX_ITEMS = _env_int("RSS_NOTIFY_MAX_ITEMS", 20)
+DEFAULT_DBLP_ENRICH_ARXIV = bool(_env_int("RSS_DBLP_ENRICH_ARXIV", 0))
+DEFAULT_DBLP_ENRICH_MAX = _env_int("RSS_DBLP_ENRICH_MAX", 30)
 
 OUTPUT_FILE = DEFAULT_OUTPUT_FILE
 MAX_ITEMS = DEFAULT_MAX_ITEMS
@@ -57,6 +59,8 @@ DBLP_MAX_VOLUMES = DEFAULT_DBLP_MAX_VOLUMES
 REQUEST_SLEEP_SEC = DEFAULT_REQUEST_SLEEP_SEC
 FEISHU_WEBHOOK = DEFAULT_FEISHU_WEBHOOK
 NOTIFY_MAX_ITEMS = DEFAULT_NOTIFY_MAX_ITEMS
+DBLP_ENRICH_ARXIV = DEFAULT_DBLP_ENRICH_ARXIV
+DBLP_ENRICH_MAX = DEFAULT_DBLP_ENRICH_MAX
 # --------------------------------------------
 
 # --- Journal/source abbreviation mapping ---
@@ -318,6 +322,65 @@ def _parse_dblp_stream_url(rss_url):
         return None
     return m.group("kind"), m.group("stream")
 
+_ARXIV_ABSTRACT_CACHE = {}
+
+def _extract_arxiv_id_from_url(url):
+    url = (url or "").strip()
+    if not url:
+        return None
+
+    # Examples:
+    # - https://arxiv.org/abs/2507.15671v1
+    # - https://arxiv.org/abs/cs/9901001
+    # - https://arxiv.org/pdf/2507.15671.pdf
+    m = re.search(
+        r"arxiv\.org/(?:abs|pdf)/(?P<id>(?:\d{4}\.\d{4,5})|(?:[a-z-]+/\d{7}))(?:v\d+)?(?:\.pdf)?",
+        url,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return None
+    return m.group("id")
+
+
+def _fetch_arxiv_abstract(arxiv_id):
+    arxiv_id = (arxiv_id or "").strip()
+    if not arxiv_id:
+        return ""
+    if arxiv_id in _ARXIV_ABSTRACT_CACHE:
+        return _ARXIV_ABSTRACT_CACHE[arxiv_id] or ""
+
+    api_url = f"https://export.arxiv.org/api/query?id_list={quote(arxiv_id)}"
+    try:
+        xml_bytes = _http_get_bytes(api_url, timeout=30, retries=2)
+    except Exception as e:
+        print(f"Warning: failed to fetch arXiv abstract for {arxiv_id}: {e}")
+        _ARXIV_ABSTRACT_CACHE[arxiv_id] = ""
+        return ""
+    finally:
+        _sleep_between_requests()
+
+    summary_text = ""
+    try:
+        root = ET.fromstring(xml_bytes)
+        entry = None
+        for elem in root.iter():
+            if str(elem.tag).endswith("entry"):
+                entry = elem
+                break
+        if entry is not None:
+            for child in entry:
+                if str(child.tag).endswith("summary"):
+                    summary_text = (child.text or "").strip()
+                    break
+    except Exception as e:
+        print(f"Warning: failed to parse arXiv API response for {arxiv_id}: {e}")
+        summary_text = ""
+
+    summary_text = " ".join((summary_text or "").split())
+    _ARXIV_ABSTRACT_CACHE[arxiv_id] = summary_text
+    return summary_text
+
 
 def _expand_dblp_stream_entries(feed, rss_url, stream_title):
     stream_info = _parse_dblp_stream_url(rss_url)
@@ -326,6 +389,7 @@ def _expand_dblp_stream_entries(feed, rss_url, stream_title):
 
     stream_kind, stream_name = stream_info
     expanded_entries = []
+    enriched = 0
 
     for i, entry in enumerate(feed.entries[: max(DBLP_MAX_VOLUMES, 0)]):
         page_url = entry.get("link", "")
@@ -374,12 +438,37 @@ def _expand_dblp_stream_entries(feed, rss_url, stream_title):
             key = (pub.attrib.get("key") or "").strip()
             item_id = f"dblp:{key}" if key else link
 
+            summary_parts = []
+            authors = [((a.text or "").strip()) for a in pub.findall("author") if (a.text or "").strip()]
+            if authors:
+                summary_parts.append("Authors: " + ", ".join(authors[:20]))
+
+            venue = (pub.findtext("booktitle") or pub.findtext("journal") or "").strip()
+            if venue:
+                summary_parts.append("Venue: " + venue)
+
+            year = (pub.findtext("year") or "").strip()
+            if year:
+                summary_parts.append("Year: " + year)
+
+            doi = (pub.findtext("doi") or "").strip()
+            if doi:
+                summary_parts.append("DOI: " + doi)
+
+            if DBLP_ENRICH_ARXIV and enriched < max(int(DBLP_ENRICH_MAX), 0):
+                arxiv_id = _extract_arxiv_id_from_url(ee)
+                if arxiv_id:
+                    abstract = _fetch_arxiv_abstract(arxiv_id)
+                    if abstract:
+                        summary_parts.append("Abstract: " + abstract)
+                        enriched += 1
+
             expanded_entries.append(
                 {
                     "title": title,
                     "link": link,
                     "pub_date": pub_date,
-                    "summary": "",
+                    "summary": "\n".join(summary_parts).strip(),
                     "journal": stream_title,
                     "id": item_id,
                 }
@@ -521,10 +610,11 @@ def _compile_term(term):
     normalized = " ".join(term.split())
     flags = 0 if exact else re.IGNORECASE
 
-    # Phrase match (flexible whitespace).
+    # Phrase match: allow flexible whitespace and common separators (e.g., "constraint solving" vs "constraint-solving").
     if " " in normalized:
         words = normalized.split(" ")
-        pattern = r"\s+".join(re.escape(word) for word in words)
+        sep = r"(?:\s+|[-\u2010-\u2015_/])+"
+        pattern = sep.join(re.escape(word) for word in words)
         return re.compile(pattern, flags)
 
     token = normalized
@@ -659,6 +749,18 @@ def parse_args():
         help="For DBLP stream RSS, expand up to this many volume/event pages per run.",
     )
     parser.add_argument(
+        "--dblp-enrich-arxiv",
+        action="store_true",
+        default=DEFAULT_DBLP_ENRICH_ARXIV,
+        help="For DBLP stream entries with arXiv ee links, fetch abstracts from the arXiv API to populate summary.",
+    )
+    parser.add_argument(
+        "--dblp-enrich-max",
+        type=int,
+        default=DEFAULT_DBLP_ENRICH_MAX,
+        help="Max number of DBLP->arXiv abstract enrichments per run (to control extra requests).",
+    )
+    parser.add_argument(
         "--request-sleep-sec",
         type=float,
         default=DEFAULT_REQUEST_SLEEP_SEC,
@@ -668,13 +770,15 @@ def parse_args():
 
 def main():
     args = parse_args()
-    global OUTPUT_FILE, MAX_ITEMS, DBLP_MAX_VOLUMES, REQUEST_SLEEP_SEC, FEISHU_WEBHOOK, NOTIFY_MAX_ITEMS
+    global OUTPUT_FILE, MAX_ITEMS, DBLP_MAX_VOLUMES, REQUEST_SLEEP_SEC, FEISHU_WEBHOOK, NOTIFY_MAX_ITEMS, DBLP_ENRICH_ARXIV, DBLP_ENRICH_MAX
     OUTPUT_FILE = args.output_file
     MAX_ITEMS = args.max_items
     DBLP_MAX_VOLUMES = args.dblp_max_volumes
     REQUEST_SLEEP_SEC = args.request_sleep_sec
     FEISHU_WEBHOOK = args.feishu_webhook
     NOTIFY_MAX_ITEMS = args.notify_max_items
+    DBLP_ENRICH_ARXIV = bool(getattr(args, "dblp_enrich_arxiv", False))
+    DBLP_ENRICH_MAX = int(getattr(args, "dblp_enrich_max", DEFAULT_DBLP_ENRICH_MAX))
     feedparser.USER_AGENT = args.user_agent
 
     rss_urls = load_config(args.journals_file, 'RSS_JOURNALS')

@@ -7,6 +7,8 @@
 AI4SE
 SE4AI
 LLM4SE
+large language model
+large language models
 AI-based program analysis
 AI-based static analysis
 AI-based vulnerability detection
@@ -82,8 +84,18 @@ vulnerability detection
 vulnerability analysis
 security analysis
 software security
+security bug
+bug detection
+bug finding
+code auditing
+anti-pattern
 code review
 automated code review
+false positive
+false positives
+alert fatigue
+triage
+security specification
 
 # --- CVE/CWE 核心术语 ---
 CVE
@@ -138,6 +150,12 @@ LLM AND graph
 LLM AND symbolic execution
 LLM AND formal verification
 LLM AND CodeQL
+
+large language model AND static analysis
+large language model AND vulnerability
+false positive AND SAST
+false positive AND static analysis
+security specification AND vulnerability
 
 repository-level AND analysis
 cross-file AND analysis
