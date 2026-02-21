@@ -4,30 +4,15 @@
 # 这些词单独出现即相关，确保不错过重要论文
 
 # --- 核心交叉领域 ---
-AI4SE
-SE4AI
-LLM4SE
+software engineering AND LLM
 AI-based program analysis
 AI-based static analysis
 AI-based vulnerability detection
-neuro-symbolic AI
 
 # --- Agent相关 ---
-multiagent AND code
-LLM agent AND code
-agentic AI AND code
+LLM agent AND vulnerability detection
+LLM agent AND software engineering
 agent-based software engineering AND code
-collaborative agent AND code
-adversarial agent AND code
-autonomous agent AND code
-swarm AND code
-
-# --- Graph-Integrated LLM 2025 ---
-graph-integrated LLM
-code graph LLM
-code knowledge graph
-graph-based code understanding
-GraphRAG AND code
 
 # --- 程序分析核心 ---
 static analysis
@@ -55,27 +40,53 @@ program dependence graph
 code graph
 software knowledge graph
 security knowledge graph
-graph neural network AND code
-GNN AND code
-CGM AND code
+code property graph AND vulnerability
+security knowledge graph AND vulnerability
+bayesian network AND vulnerability
+risk propagation AND code
+dynamic language AND call graph
+python AND reflection AND static analysis
+# removed-strict3: graph neural network AND code
 
 # --- 漏洞检测 ---
 vulnerability detection
 vulnerability analysis
-security analysis
 software security
-code review
+security code review
 security bug
 bug detection
 bug finding
 code auditing
 anti-pattern
 automated code review
-false positive
-false positives
 alert fatigue
-triage
 security specification
+interprocedural taint analysis
+static taint analysis
+code vulnerability detection
+vulnerability localization
+vulnerability repair
+program dependence graph AND vulnerability
+control flow graph AND vulnerability
+AST AND vulnerability
+CodeQL AND vulnerability
+SAST AND vulnerability
+source sink AND vulnerability
+causal tracing AND vulnerability
+causal subgraph AND vulnerability
+interprocedural AND vulnerability
+cross-file AND vulnerability
+fix pattern AND vulnerability
+symbolic verification AND vulnerability
+neural symbolic AND code analysis
+static analysis AND LLM AND verification
+LLM-generated CodeQL
+community detection AND code graph
+task decomposition AND code analysis
+adversarial review AND code
+generator discriminator AND vulnerability
+multi-agent AND vulnerability detection
+agent AND taint analysis
 
 # --- CVE/CWE 核心术语 ---
 CVE
@@ -99,15 +110,11 @@ SWE-bench
 
 # --- 符号执行/形式化 ---
 symbolic execution
-formal verification
+formal verification AND vulnerability
 CodeQL
 Joern
 Semgrep
-program synthesis
 constraint solving
-
-# --- 推理/验证相关 ---
-hallucination detection
 
 # ========================================
 # Tier 2: 双关键词组合（平衡精度和召回）
@@ -115,48 +122,36 @@ hallucination detection
 
 LLM AND program analysis
 LLM AND static analysis
-LLM AND vulnerability
-LLM AND security
+LLM AND vulnerability detection
+LLM AND software security
 LLM AND code review
 LLM AND taint analysis
-LLM AND slicing
-LLM AND graph
 LLM AND symbolic execution
-LLM AND formal verification
+LLM AND formal verification AND vulnerability
 LLM AND CodeQL
 
 large language model AND static analysis
-large language model AND vulnerability
+large language model AND vulnerability detection
 false positive AND SAST
 false positive AND static analysis
 security specification AND vulnerability
 
 repository-level AND analysis
-cross-file AND analysis
+cross-file AND vulnerability analysis
 whole-repository AND reasoning
-large-scale AND code analysis
 
-multi-agent AND code
-multi-agent AND security
-multi-agent AND verification
+
 agent AND vulnerability detection
 
 graph neural network AND vulnerability
-graph neural network AND code
 GNN AND vulnerability
-GNN AND code
 code graph AND LLM
-knowledge graph AND code
 
-reasoning AND code
-test-time AND code
-inference-time AND code
-causal tracing AND code
-mechanistic interpretability AND code
+
 
 # CVE/CWE 组合
 CVE AND LLM
-CVE AND analysis
+CVE AND vulnerability analysis
 CVE AND patch
 CVE AND slicing
 CVE AND causal
@@ -167,7 +162,7 @@ CWE AND LLM
 CWE AND classification
 CWE AND detection
 CWE AND mapping
-CWE AND semantic
+CWE AND semantic mapping
 CWE AND root cause
 
 CVE AND CWE AND mapping
@@ -176,7 +171,7 @@ vulnerability AND taxonomy
 root cause AND CWE
 
 # ========================================
-# Tier 3: 三关键词组合（高精度，你的核心研究）
+# Tier 3: 三关键词组合
 # ========================================
 
 neuro-symbolic AND vulnerability
@@ -200,7 +195,7 @@ neuro-symbolic AND bidirectional AND iteration
 dynamic graph AND LLM AND vulnerability
 CodeQL AND LLM AND verification
 
-# CVE/CWE 精准组合（第三章核心）
+# CVE/CWE 精准组合
 CVE AND patch AND analysis
 CVE AND causal AND tracing
 CVE AND slicing AND benchmark
@@ -211,7 +206,7 @@ vulnerability chain AND CVE
 interprocedural AND vulnerability AND CVE
 cross-file AND vulnerability AND CWE
 
-# 语义映射相关（第三章 3.3）
+# 语义映射相关
 semantic mapping AND vulnerability
 vulnerability taxonomy AND LLM
 CWE classification AND LLM
@@ -219,22 +214,3 @@ vulnerability labeling
 vulnerability annotation
 root cause labeling
 fix pattern extraction
-
-# ========================================
-# 具体工具/系统名称（可选，高精度）
-# ========================================
-
-CodeAgent
-Code AND Agent
-
-
-# ========================================
-# 边缘相关术语
-# ========================================
-RAG AND code
-retrieval augmented generation AND security
-prompt engineering AND security
-few-shot learning AND vulnerability
-zero-shot AND vulnerability detection
-interpretability AND vulnerability
-explainable AI AND security

@@ -49,10 +49,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run RSS Script
-      env: 
-        RSS_JOURNALS: ${{ secrets.RSS_JOURNALS }}
-        RSS_KEYWORDS: ${{ secrets.RSS_KEYWORDS }}
-        RSS_FEISHU_WEBHOOK: ${{ secrets.RSS_FEISHU_WEBHOOK }}
+      env:
         PYTHONDONTWRITEBYTECODE: '1'
       run: |
         set -euo pipefail

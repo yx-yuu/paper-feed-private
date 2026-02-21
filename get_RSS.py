@@ -12,6 +12,15 @@ from urllib.parse import urlsplit, urlunsplit, quote
 from rfeed import Item, Feed, Guid
 
 TITLE_PREFIX_RE = re.compile(r"^\[[^\]]{1,60}\]\s*")
+ARXIV_ID_TOKEN = r"(?:\d{4}\.\d{4,5}|[a-z-]+/\d{7})"
+ARXIV_OAI_ID_RE = re.compile(
+    rf"oai:arXiv\.org:(?P<id>{ARXIV_ID_TOKEN})(?:v(?P<version>\d+))?$",
+    flags=re.IGNORECASE,
+)
+ARXIV_URL_ID_RE = re.compile(
+    rf"arxiv\.org/(?:abs|pdf)/(?P<id>{ARXIV_ID_TOKEN})(?:v(?P<version>\d+))?(?:\.pdf)?",
+    flags=re.IGNORECASE,
+)
 
 def _env_int(name, default):
     value = os.environ.get(name, "").strip()
@@ -333,14 +342,79 @@ def _extract_arxiv_id_from_url(url):
     # - https://arxiv.org/abs/2507.15671v1
     # - https://arxiv.org/abs/cs/9901001
     # - https://arxiv.org/pdf/2507.15671.pdf
-    m = re.search(
-        r"arxiv\.org/(?:abs|pdf)/(?P<id>(?:\d{4}\.\d{4,5})|(?:[a-z-]+/\d{7}))(?:v\d+)?(?:\.pdf)?",
-        url,
-        flags=re.IGNORECASE,
-    )
+    m = ARXIV_URL_ID_RE.search(url)
     if not m:
         return None
-    return m.group("id")
+    return (m.group("id") or "").strip().lower() or None
+
+
+def _extract_arxiv_base_and_version(value):
+    value = (value or "").strip()
+    if not value:
+        return None, None
+
+    m = ARXIV_OAI_ID_RE.search(value)
+    if not m:
+        m = ARXIV_URL_ID_RE.search(value)
+    if not m:
+        return None, None
+
+    base_id = (m.group("id") or "").strip().lower()
+    if not base_id:
+        return None, None
+
+    version_raw = (m.groupdict().get("version") or "").strip()
+    version = int(version_raw) if version_raw.isdigit() else 0
+    return base_id, version
+
+
+def _entry_dedupe_key(entry):
+    raw_id = (entry.get("id") or "").strip()
+    link = (entry.get("link") or "").strip()
+
+    base_id, _ = _extract_arxiv_base_and_version(raw_id)
+    if not base_id:
+        base_id, _ = _extract_arxiv_base_and_version(link)
+
+    if base_id:
+        return f"arxiv:{base_id}"
+    if raw_id:
+        return f"id:{raw_id}"
+    return f"link:{link}"
+
+
+def _entry_arxiv_version(entry):
+    raw_id = (entry.get("id") or "").strip()
+    link = (entry.get("link") or "").strip()
+
+    _, version = _extract_arxiv_base_and_version(raw_id)
+    if version is None:
+        _, version = _extract_arxiv_base_and_version(link)
+
+    return int(version) if version is not None else -1
+
+
+def _entry_pub_date(entry):
+    pub_date = entry.get("pub_date")
+    if isinstance(pub_date, datetime.datetime):
+        return pub_date
+    return datetime.datetime.min
+
+
+def _is_preferred_entry(candidate, existing):
+    candidate_ver = _entry_arxiv_version(candidate)
+    existing_ver = _entry_arxiv_version(existing)
+    if candidate_ver != existing_ver:
+        return candidate_ver > existing_ver
+
+    candidate_date = _entry_pub_date(candidate)
+    existing_date = _entry_pub_date(existing)
+    if candidate_date != existing_date:
+        return candidate_date > existing_date
+
+    candidate_id = (candidate.get("id") or "").strip()
+    existing_id = (existing.get("id") or "").strip()
+    return candidate_id > existing_id
 
 
 def _fetch_arxiv_abstract(arxiv_id):
@@ -805,11 +879,20 @@ def main():
         existing_entries = pruned
         print(f"Pruned existing items: {before} -> {len(existing_entries)}")
 
-    seen_ids = set(entry['id'] for entry in existing_entries)
-    
-    all_entries = existing_entries.copy()
-    new_entries = []
-    new_count = 0
+    existing_by_key = {}
+    for entry in existing_entries:
+        key = _entry_dedupe_key(entry)
+        current = existing_by_key.get(key)
+        if current is None or _is_preferred_entry(entry, current):
+            existing_by_key[key] = entry
+
+    if len(existing_by_key) != len(existing_entries):
+        print(f"Deduplicated existing items by paper key: {len(existing_entries)} -> {len(existing_by_key)}")
+
+    entry_state_by_key = {
+        key: {"entry": entry, "is_new": False}
+        for key, entry in existing_by_key.items()
+    }
 
     if args.skip_fetch:
         print("Skipping remote RSS fetch (--skip-fetch).")
@@ -818,16 +901,38 @@ def main():
         for url in rss_urls:
             fetched_entries = parse_rss(url)
             for entry in fetched_entries:
-                if entry['id'] in seen_ids:
+                matched_query = find_matching_query(entry, compiled_queries)
+                if not matched_query:
+                    continue
+                if entry['pub_date'].year < int(args.min_year):
                     continue
 
-                matched_query = find_matching_query(entry, compiled_queries)
-                if matched_query and entry['pub_date'].year >= int(args.min_year):
-                    all_entries.append(entry)
-                    seen_ids.add(entry['id'])
-                    new_entries.append(entry)
-                    new_count += 1
+                key = _entry_dedupe_key(entry)
+                state = entry_state_by_key.get(key)
+                if state is None:
+                    entry_state_by_key[key] = {"entry": entry, "is_new": True}
                     print(f"Match found ({matched_query}): {entry['title'][:50]}...")
+                    continue
+
+                current = state["entry"]
+                if not _is_preferred_entry(entry, current):
+                    continue
+
+                current_id = (current.get("id") or "").strip()
+                next_id = (entry.get("id") or "").strip()
+                id_changed = current_id != next_id
+                was_new = bool(state.get("is_new"))
+                entry_state_by_key[key] = {
+                    "entry": entry,
+                    "is_new": was_new or id_changed,
+                }
+
+                if id_changed:
+                    print(f"Match updated to latest ({matched_query}): {entry['title'][:50]}...")
+
+    all_entries = [state["entry"] for state in entry_state_by_key.values()]
+    new_entries = [state["entry"] for state in entry_state_by_key.values() if state.get("is_new")]
+    new_count = len(new_entries)
 
     print(f"Added {new_count} new entries.")
     generate_rss_xml(all_entries)
