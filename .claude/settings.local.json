@@ -16,6 +16,7 @@
       "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" log:*)",
       "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" rebase:*)",
       "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" status:*)",
+      "Bash(git -C:*)",
       "Bash(GIT_EDITOR=true git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" rebase:*)"
     ]
   }
