@@ -5,11 +5,17 @@
       "Bash(git commit:*)",
       "mcp__web-search-prime__webSearchPrime",
       "Bash(git push:*)",
-      "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" status:*)",
-      "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" checkout:*)",
+      "Bash(python3:*)",
+      "Bash(uv venv:*)",
+      "Bash(uv pip install:*)",
+      "Bash(\"/Users/bilibili/Documents/Tools/paper-feed-private/.venv/bin/python\" -m py_compile:*)",
+      "Bash(\"/Users/bilibili/Documents/Tools/paper-feed-private/.venv/bin/python\":*)",
       "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" add:*)",
-      "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" rebase:*)",
+      "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" checkout:*)",
       "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" diff:*)",
+      "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" log:*)",
+      "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" rebase:*)",
+      "Bash(git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" status:*)",
       "Bash(GIT_EDITOR=true git -C \"/Users/bilibili/Documents/Tools/paper-feed-private\" rebase:*)"
     ]
   }
