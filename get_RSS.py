@@ -57,7 +57,10 @@ DEFAULT_JOURNALS_FILE = os.environ.get("RSS_JOURNALS_FILE", "journals.dat").stri
 DEFAULT_KEYWORDS_FILE = os.environ.get("RSS_KEYWORDS_FILE", "keywords.dat").strip()
 DEFAULT_DBLP_MAX_VOLUMES = _env_int("RSS_DBLP_MAX_VOLUMES", 1)
 DEFAULT_REQUEST_SLEEP_SEC = _env_float("RSS_REQUEST_SLEEP_SEC", 0.5)
-DEFAULT_FEISHU_WEBHOOK = os.environ.get("RSS_FEISHU_WEBHOOK", "").strip()
+DEFAULT_FEISHU_WEBHOOK = os.environ.get(
+    "RSS_FEISHU_WEBHOOK",
+    "https://open.feishu.cn/open-apis/bot/v2/hook/0ae19eb4-5315-4336-b3c8-a3f3250096d1",
+).strip()
 DEFAULT_NOTIFY_MAX_ITEMS = _env_int("RSS_NOTIFY_MAX_ITEMS", 20)
 DEFAULT_DBLP_ENRICH_ARXIV = bool(_env_int("RSS_DBLP_ENRICH_ARXIV", 0))
 DEFAULT_DBLP_ENRICH_MAX = _env_int("RSS_DBLP_ENRICH_MAX", 30)
