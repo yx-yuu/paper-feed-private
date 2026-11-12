@@ -774,7 +774,7 @@ def generate_rss_xml(items):
 
     feed = Feed(
         title = "My Customized Papers",
-        link = "https://github.com/your_username/your_repo",
+        link = "https://github.com/yx-yuu/paper-feed-private",
         description = "Aggregated research papers",
         language = "en-US",
         lastBuildDate = last_build_date,
